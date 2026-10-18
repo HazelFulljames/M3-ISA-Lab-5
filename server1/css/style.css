@@ -1,0 +1,17 @@
+body {
+  margin: 1.5rem;
+}
+
+textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 36rem;
+  max-width: 100%;
+  min-height: 8rem;
+  margin: 0.5rem 0;
+}
+
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

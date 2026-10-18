@@ -19,9 +19,10 @@ class PatientRepository {
     ['Elon Musk', '1999-01-01'],
   ];
 
-  constructor(adminDb, restrictedDb) {
+  constructor(adminDb, restrictedDb, readDb) {
     this.adminDb = adminDb;
     this.restrictedDb = restrictedDb;
+    this.readDb = readDb;
   }
 
   /** Creates the patient table if it does not already exist. */
@@ -40,8 +41,8 @@ class PatientRepository {
   }
 
   /** Runs client-supplied SQL as the restricted account. MySQL enforces what is allowed. */
-  async runQuery(sql) {
-    return this.restrictedDb.query(sql);
+  async runQuery(sql, readOnly = true) {
+    return (readOnly ? this.readDb : this.restrictedDb).query(sql);
   }
 }
 

@@ -20,4 +20,8 @@ GRANT CREATE ON lab5.* TO 'lab5_admin'@'localhost';
 CREATE USER IF NOT EXISTS 'lab5_restricted'@'localhost' IDENTIFIED BY 'change_me_restricted';
 GRANT SELECT, INSERT ON lab5.* TO 'lab5_restricted'@'localhost';
 
+-- SELECT-only account for GET queries.
+CREATE USER IF NOT EXISTS 'lab5_reader'@'localhost' IDENTIFIED BY 'change_me_reader';
+GRANT SELECT ON lab5.* TO 'lab5_reader'@'localhost';
+
 FLUSH PRIVILEGES;

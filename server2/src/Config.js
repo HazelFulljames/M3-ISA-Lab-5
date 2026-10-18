@@ -11,10 +11,15 @@ class Config {
       host: env.DB_HOST || 'localhost',
       port: Number(env.DB_PORT) || 3306,
       database: env.DB_NAME || 'lab5',
+      ssl: env.DB_SSL_CA_FILE ? {
+        ca: fs.readFileSync(path.resolve(__dirname, '..', env.DB_SSL_CA_FILE), 'utf8'),
+        rejectUnauthorized: true,
+      } : undefined,
     };
 
     this.adminDb = { ...base, user: env.DB_ADMIN_USER, password: env.DB_ADMIN_PASSWORD };
     this.restrictedDb = { ...base, user: env.DB_RESTRICTED_USER, password: env.DB_RESTRICTED_PASSWORD };
+    this.readDb = { ...base, user: env.DB_READ_USER, password: env.DB_READ_PASSWORD };
 
     this.validate();
   }
@@ -23,6 +28,7 @@ class Config {
     const missing = [];
     if (!this.adminDb.user) missing.push('DB_ADMIN_USER');
     if (!this.restrictedDb.user) missing.push('DB_RESTRICTED_USER');
+    if (!this.readDb.user) missing.push('DB_READ_USER');
     if (missing.length) {
       throw new Error(`Missing required setting(s): ${missing.join(', ')}. See .env.example.`);
     }

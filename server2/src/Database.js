@@ -2,13 +2,14 @@ const mysql = require('mysql2/promise');
 
 /** Thin wrapper around a MySQL connection pool for one database account. */
 class Database {
-  constructor({ host, port, user, password, database }) {
+  constructor({ host, port, user, password, database, ssl }) {
     this.pool = mysql.createPool({
       host,
       port,
       user,
       password,
       database,
+      ssl,
       connectionLimit: 5,
       multipleStatements: false, // one statement per request
       dateStrings: true, // return DATETIME as text so old dates don't shift with time zones

@@ -1,3 +1,4 @@
+const Messages = require('../lang/en/user');
 const http = require('http');
 
 class ApiError extends Error {
@@ -55,11 +56,18 @@ class ApiServer {
       // If none match, we return a 405 Method Not Allowed
       const { pathname } = new URL(req.url, 'http://localhost');
       const matches = this.routes.filter((r) => r.pattern.test(pathname));
-      if (matches.length === 0) throw new ApiError(404, 'Not found');
+      if (matches.length === 0) throw new ApiError(404, Messages.notFound);
+
+      // Answers browser preflight requests without querying the database.
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204);
+        res.end();
+        return;
+      }
 
       // Find the route that matches the request method. If none match, we return a 405 Method Not Allowed
       const route = matches.find((r) => r.method === req.method);
-      if (!route) throw new ApiError(405, `Method ${req.method} not allowed here`);
+      if (!route) throw new ApiError(405, Messages.methodNotAllowed.replace("%1", req.method));
 
       // Call the route handler and send returned.body as JSON
       const match = pathname.match(route.pattern);
@@ -81,11 +89,11 @@ class ApiServer {
     try {
       raw = decodeURIComponent(match[1]);
     } catch {
-      throw new ApiError(400, 'Query in the URL is not properly encoded');
+      throw new ApiError(400, Messages.invalidEncoding);
     }
     const query = this.cleanQuery(raw);
     if (!/^select\b/i.test(query)) {
-      throw new ApiError(400, 'GET only accepts SELECT queries. Use POST for INSERT.');
+      throw new ApiError(400, Messages.selectOnly);
     }
     return this.runQuery(query);
   }
@@ -93,35 +101,40 @@ class ApiServer {
   /** POST .../api/v1/sql  with JSON body {"query": "insert into ..."} */
   async postQuery({ req }) {
     const body = await this.readJsonBody(req);
-    return this.runQuery(this.cleanQuery(body.query));
+    const query = this.cleanQuery(body.query);
+    if (!/^insert\b/i.test(query)) {
+      throw new ApiError(400, Messages.insertOnly);
+    }
+    await this.repository.ensureTable();
+    return this.runQuery(query, false);
   }
 
   /** POST .../api/v1/patients/seed : the Insert button */
   async seedPatients() {
     const count = await this.repository.insertDefaultPatients();
-    return { status: 201, body: { message: `Inserted ${count} patients`, affectedRows: count } };
+    return { status: 201, body: { message: Messages.inserted.replace("%1", count), affectedRows: count } };
   }
 
   // ---------- helpers ----------
 
-  async runQuery(query) {
-    const result = await this.repository.runQuery(query);
+  async runQuery(query, readOnly = true) {
+    const result = await this.repository.runQuery(query, readOnly);
     if (Array.isArray(result)) {
       return { status: 200, body: result }; // SELECT: plain array of rows
     }
     return {
       status: 200,
-      body: { message: 'Query OK', affectedRows: result.affectedRows, insertId: result.insertId },
+      body: { message: Messages.queryOk, affectedRows: result.affectedRows, insertId: result.insertId },
     };
   }
 
   /** Trims, and removes one pair of wrapping quotes (the example URL wraps the query in "..."). */
   cleanQuery(value) {
-    if (typeof value !== 'string') throw new ApiError(400, 'A "query" string is required');
+    if (typeof value !== 'string') throw new ApiError(400, Messages.queryRequired);
     let query = value.trim();
     const quoted = query.match(/^(["'])([\s\S]*)\1$/);
     if (quoted) query = quoted[2].trim();
-    if (!query) throw new ApiError(400, 'Query is empty');
+    if (!query) throw new ApiError(400, Messages.queryEmpty);
     return query;
   }
 
@@ -132,7 +145,7 @@ class ApiServer {
       req.on('data', (chunk) => {
         size += chunk.length;
         if (size > ApiServer.MAX_BODY_BYTES) {
-          reject(new ApiError(413, 'Request body too large'));
+          reject(new ApiError(413, Messages.bodyTooLarge));
           req.destroy();
           return;
         }
@@ -144,7 +157,7 @@ class ApiServer {
           if (parsed === null || typeof parsed !== 'object') throw new Error();
           resolve(parsed);
         } catch {
-          reject(new ApiError(400, 'Body must be valid JSON like {"query": "..."}'));
+          reject(new ApiError(400, Messages.invalidJson));
         }
       });
       req.on('error', reject);
@@ -154,13 +167,13 @@ class ApiServer {
   toApiError(err) {
     if (err instanceof ApiError) return err;
     if (err && ApiServer.PERMISSION_ERRNOS.has(err.errno)) {
-      return new ApiError(403, 'Not allowed: this account can only run SELECT and INSERT queries.');
+      return new ApiError(403, Messages.permissionDenied);
     }
     // MySQL server errors (syntax error, unknown table, ...) have a sqlState; connection problems do not.
     if (err && err.sqlState && err.sqlMessage) {
       return new ApiError(400, err.sqlMessage);
     }
-    return new ApiError(500, 'Internal server error');
+    return new ApiError(500, Messages.internalError);
   }
 
   setCorsHeaders(res) {
