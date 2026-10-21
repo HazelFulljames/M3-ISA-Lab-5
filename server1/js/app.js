@@ -17,6 +17,11 @@ class PatientApp {
     this.insertButton.textContent = Messages.insert;
     this.insertButton.addEventListener("click", () => this.run(() => this.api.insert()));
 
+    this.deleteButton = document.createElement("button");
+    this.deleteButton.type = "button";
+    this.deleteButton.textContent = Messages.delete;
+    this.deleteButton.addEventListener("click", () => this.run(() => this.api.drop()));
+
     const form = document.createElement("form");
     const label = document.createElement("label");
     label.htmlFor = "sql-query";
@@ -36,7 +41,7 @@ class PatientApp {
     this.result = document.createElement("pre");
     this.result.setAttribute("role", "status");
     const spacing = document.createElement("p");
-    spacing.append(this.insertButton);
+    spacing.append(this.insertButton, this.deleteButton);
     this.root.append(spacing, form, this.result);
   }
 

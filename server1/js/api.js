@@ -9,7 +9,6 @@ export class PatientApi {
       options.headers = { "Content-Type": "application/json" };
       options.body = JSON.stringify(ApiConfig.insertBody);
     }
-    return this.request(ApiConfig.insertUrl, options);
   }
 
   // Sends SQL through GET; database permissions enforce read-only access.
